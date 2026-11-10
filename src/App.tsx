@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Lock, ShieldCheck, Terminal } from 'lucide-react';
+import { Clock, FileSearch, Lock, ShieldCheck } from 'lucide-react';
+import logoImg from './assets/tokenpeek-logo.png';
 import { ClaimsTable } from './components/ClaimsTable';
 import { ExpirationBanner } from './components/ExpirationBanner';
 import { JsonPanel } from './components/JsonPanel';
@@ -63,20 +64,71 @@ export function App() {
     <div className="app-shell">
       <header className="topbar">
         <div className="brand">
-          <div className="brand-icon" aria-hidden="true">
-            <Terminal size={20} />
-          </div>
+          <img
+            src={logoImg}
+            alt="TokenPeek Logo"
+            className="brand-logo"
+          />
           <div>
             <h1>TokenPeek</h1>
-            <p>Backend geliştiriciler için tarayıcı içi JWT inceleme ve güvenli imza doğrulama aracı</p>
+            <p>Tarayıcı içi JWT (JSON Web Token) inceleme ve güvenli imza doğrulama aracı</p>
           </div>
         </div>
 
-        <div className="privacy-pill" title="Hiçbir token veya anahtar sunucuya gönderilmez, localStorage'da saklanmaz.">
+        <div
+          className="privacy-pill"
+          title="Hiçbir token veya anahtar sunucuya gönderilmez, tarayıcı deposunda saklanmaz."
+        >
           <Lock size={14} />
           %100 Tarayıcıda İşlenir — Sunucuya Veri Gönderilmez
         </div>
       </header>
+
+      <section className="intro-card" aria-label="TokenPeek Ne İşe Yarar?">
+        <div className="intro-header">
+          <h2 className="card-title">TokenPeek Ne Yapar?</h2>
+          <span className="badge badge-info">Backend & API Debug Aracı</span>
+        </div>
+        <p className="intro-summary">
+          API isteklerinde kullandığınız JWT token&apos;ları harici bir sunucuya göndermeden kendi
+          tarayıcınızda çözümleyip doğrulamanızı sağlar.
+        </p>
+
+        <div className="intro-steps">
+          <div className="intro-step">
+            <div className="intro-step-title">
+              <FileSearch size={15} color="#38bdf8" />
+              1. Yapıştır &amp; Çözümle
+            </div>
+            <p className="intro-step-desc">
+              Header, Payload ve tüm Claim alanlarını okunabilir JSON ve aranabilir tablo halinde
+              görüntüleyin; format hatalarını anında yakalayın.
+            </p>
+          </div>
+
+          <div className="intro-step">
+            <div className="intro-step-title">
+              <Clock size={15} color="#c084fc" />
+              2. Süre &amp; Geçerliliği İzle
+            </div>
+            <p className="intro-step-desc">
+              Token&apos;ın ne zaman üretildiğini (<code>iat</code>), ne zaman süresinin dolacağını (
+              <code>exp</code>) ve kalan zamanı canlı geri sayımla takip edin.
+            </p>
+          </div>
+
+          <div className="intro-step">
+            <div className="intro-step-title">
+              <ShieldCheck size={15} color="#34d399" />
+              3. İmzayı Güvenle Doğrula
+            </div>
+            <p className="intro-step-desc">
+              Token&apos;ın yolda değiştirilmediğini doğrulamak için HMAC secret veya Public Key
+              (PEM / JWKS) ile tarayıcı içinde kriptografik kontrol yapın.
+            </p>
+          </div>
+        </div>
+      </section>
 
       <main className="main-grid">
         <div className="stack">

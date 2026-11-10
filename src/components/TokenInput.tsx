@@ -30,47 +30,55 @@ export function TokenInput({
           <KeyRound size={17} color="#38bdf8" />
           Encoded JWT Token
         </h2>
+        <button
+          type="button"
+          className="btn btn-danger"
+          onClick={onClear}
+          disabled={!rawToken}
+          title="Token ve anahtarları bellekten temizle"
+        >
+          <Trash2 size={14} />
+          Belleği Temizle
+        </button>
+      </div>
+
+      <div className="sample-box" aria-label="Örnek token oluşturma araçları">
+        <div className="sample-box-label">
+          <Sparkles size={14} color="#38bdf8" />
+          Test için Örnek Token Oluştur (Tarayıcıda üretilir):
+        </div>
         <div className="btn-row">
           <button
             type="button"
             className="btn"
             onClick={() => onLoadSample('valid')}
-            title="Tarayıcı içinde geçerli HS256 örnek token üret"
+            title="Geçerli bir HS256 örnek token oluştur"
           >
-            <Sparkles size={14} />
-            Örnek HS256
+            Örnek HS256 Oluştur
           </button>
           <button
             type="button"
             className="btn"
             onClick={() => onLoadSample('rs256')}
-            title="Tarayıcı içinde RS256 anahtar çifti ve JWKS ile örnek token üret"
+            title="RS256 anahtar çifti ve JWKS ile örnek token oluştur"
           >
-            Örnek RS256
+            Örnek RS256 Oluştur
           </button>
           <button
             type="button"
             className="btn"
             onClick={() => onLoadSample('expired')}
+            title="Süresi dolmuş örnek token oluştur"
           >
-            Süresi Dolmuş
+            Süresi Dolmuş Oluştur
           </button>
           <button
             type="button"
             className="btn"
             onClick={() => onLoadSample('tampered')}
+            title="İmzası bozulmuş örnek token oluştur"
           >
-            Bozuk İmza
-          </button>
-          <button
-            type="button"
-            className="btn btn-danger"
-            onClick={onClear}
-            disabled={!rawToken}
-            title="Token ve anahtarları bellekten temizle"
-          >
-            <Trash2 size={14} />
-            Temizle
+            Bozuk İmza Oluştur
           </button>
         </div>
       </div>

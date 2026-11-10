@@ -3,6 +3,7 @@ import {
   CheckCircle2,
   Eye,
   EyeOff,
+  HelpCircle,
   ShieldAlert,
   ShieldCheck,
   XCircle,
@@ -121,6 +122,32 @@ export function SignatureVerifier({
             Public Key (RS*/ES*/EdDSA)
           </button>
         </div>
+      </div>
+
+      <div className="verifier-guide">
+        <div className="verifier-guide-title">
+          <HelpCircle size={15} color="#38bdf8" />
+          Bu bölüm ne işe yarar?
+        </div>
+        <div>
+          JWT içindeki bilgiler yalnızca Base64 ile kodlandığı için herkes tarafından okunabilir.
+          Token&apos;ın <strong>gerçekten yetkili sunucudan geldiğini</strong> ve{' '}
+          <strong>içeriğinin değiştirilmediğini</strong> doğrulamak için imza kontrolü yapılır:
+        </div>
+        <ul>
+          <li>
+            <strong>HMAC Secret (HS256/384/512):</strong> Sunucunuzla paylaşılan gizli anahtarı (
+            <code>secret</code>) girin.
+          </li>
+          <li>
+            <strong>Public Key (RS256/ES256/EdDSA):</strong> Auth servisinizin herkese açık PEM veya
+            JWKS anahtarını yapıştırın.
+          </li>
+          <li>
+            <strong>Algoritma &amp; Policy Kontrolü:</strong> İsterseniz beklenen algoritmayı,{' '}
+            <code>iss</code> (üretici) ve <code>aud</code> (hedef API) değerlerini de doğrulayın.
+          </li>
+        </ul>
       </div>
 
       <div className="field-group">

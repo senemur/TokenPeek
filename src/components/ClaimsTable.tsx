@@ -36,7 +36,7 @@ export function ClaimsTable({ payload }: ClaimsTableProps) {
           <Table2 size={17} color="#c084fc" />
           Claim Tablosu ({rows.length})
         </h2>
-        <div style={{ position: 'relative', minWidth: 220 }}>
+        <div className="claims-search">
           <Search
             size={14}
             color="#64748b"

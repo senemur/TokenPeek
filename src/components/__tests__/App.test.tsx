@@ -16,12 +16,16 @@ afterEach(() => {
 });
 
 describe('App UI integration', () => {
-  it('loads initial valid HS256 demo token and displays sections', async () => {
+  it('displays brand logo, overview guide, verifier guide, and initial HS256 demo token', async () => {
     render(<App />);
+
+    expect(screen.getByAltText('TokenPeek Logo')).toBeInTheDocument();
+    expect(screen.getByText('TokenPeek Ne Yapar?')).toBeInTheDocument();
 
     expect(
       await screen.findByText('Süre Geçerli', {}, { timeout: 4000 }),
     ).toBeInTheDocument();
+    expect(screen.getByText('Bu bölüm ne işe yarar?')).toBeInTheDocument();
     expect(screen.getByText('Header (JOSE)')).toBeInTheDocument();
     expect(screen.getByText('Payload (Claims)')).toBeInTheDocument();
     expect(screen.getByText(/Claim Tablosu/)).toBeInTheDocument();
@@ -31,10 +35,12 @@ describe('App UI integration', () => {
     render(<App />);
     await screen.findByText('Süre Geçerli');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Süresi Dolmuş' }));
-    expect(await screen.findByText('Süresi Dolmuş', { selector: 'span.badge' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Süresi Dolmuş Oluştur' }));
+    expect(
+      await screen.findByText('Süresi Dolmuş', { selector: 'span.badge' }),
+    ).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Bozuk İmza' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Bozuk İmza Oluştur' }));
     await screen.findByText('Süre Geçerli', { selector: 'span.badge' });
 
     fireEvent.click(
@@ -49,7 +55,7 @@ describe('App UI integration', () => {
     render(<App />);
     await screen.findByText('Süre Geçerli');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Örnek RS256' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Örnek RS256 Oluştur' }));
 
     await waitFor(() => {
       expect(screen.getByText(/Header kid:/)).toBeInTheDocument();
@@ -85,7 +91,7 @@ describe('App UI integration', () => {
     expect(screen.getAllByText('auditor').length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText('backend-user-77')).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /Temizle/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Belleği Temizle/i }));
     expect(
       screen.getByText('İncelemek için bir JWT token yapıştırın'),
     ).toBeInTheDocument();
