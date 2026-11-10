@@ -6,7 +6,7 @@ import { JsonPanel } from './components/JsonPanel';
 import { SignatureVerifier } from './components/SignatureVerifier';
 import { TokenInput } from './components/TokenInput';
 import { inspectJwt } from './lib/jwt';
-import { createSampleTokens } from './lib/verify';
+import { createAsymmetricSampleToken, createSampleTokens } from './lib/verify';
 
 export function App() {
   const [rawToken, setRawToken] = useState('');
@@ -27,9 +27,18 @@ export function App() {
 
   const inspection = useMemo(() => inspectJwt(rawToken), [rawToken]);
 
-  async function handleLoadSample(kind: 'valid' | 'expired' | 'tampered') {
+  async function handleLoadSample(kind: 'valid' | 'expired' | 'tampered' | 'rs256') {
+    if (kind === 'rs256') {
+      const rsBundle = await createAsymmetricSampleToken();
+      setSecret('');
+      setPublicKeyInput(rsBundle.jwksJson);
+      setRawToken(rsBundle.token);
+      return;
+    }
+
     const bundle = await createSampleTokens();
     setSecret(bundle.secret);
+    setPublicKeyInput('');
     if (kind === 'valid') setRawToken(bundle.validToken);
     if (kind === 'expired') setRawToken(bundle.expiredToken);
     if (kind === 'tampered') setRawToken(bundle.tamperedToken);
@@ -44,6 +53,10 @@ export function App() {
   const headerAlg =
     inspection.header && typeof inspection.header.alg === 'string'
       ? inspection.header.alg
+      : null;
+  const headerKid =
+    inspection.header && typeof inspection.header.kid === 'string'
+      ? inspection.header.kid
       : null;
 
   return (
@@ -79,6 +92,8 @@ export function App() {
             <SignatureVerifier
               token={inspection.normalizedToken}
               headerAlg={headerAlg}
+              headerKid={headerKid}
+              payload={inspection.payload}
               secret={secret}
               onSecretChange={setSecret}
               publicKeyInput={publicKeyInput}

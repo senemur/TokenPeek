@@ -1,4 +1,13 @@
-import { compactVerify, importJWK, importSPKI, SignJWT, errors as joseErrors } from 'jose';
+import {
+  compactVerify,
+  exportJWK,
+  exportSPKI,
+  generateKeyPair,
+  importJWK,
+  importSPKI,
+  SignJWT,
+  errors as joseErrors,
+} from 'jose';
 import type { JWK } from 'jose';
 
 export const HMAC_ALGORITHMS = ['HS256', 'HS384', 'HS512'] as const;
@@ -22,19 +31,33 @@ export type SupportedAlgorithm = HmacAlgorithm | AsymmetricAlgorithm;
 export type KeyMode = 'hmac' | 'publicKey';
 export type SecretEncoding = 'utf8' | 'base64';
 
+export interface PolicyCheckResult {
+  claim: 'iss' | 'aud';
+  expected: string;
+  actual: string | null;
+  passed: boolean;
+  message: string;
+}
+
 export interface VerifySignatureOptions {
   token: string;
   headerAlg: string | null;
+  headerKid?: string | null;
+  payload?: Record<string, unknown> | null;
   keyMode: KeyMode;
   expectedAlgorithm: SupportedAlgorithm | 'auto';
   secret: string;
   secretEncoding: SecretEncoding;
   publicKeyInput: string;
+  expectedIssuer?: string;
+  expectedAudience?: string;
 }
 
 export interface VerifySignatureResult {
   status: 'valid' | 'invalid' | 'error';
   algorithmUsed: SupportedAlgorithm | null;
+  matchedKeyId?: string | null;
+  policyChecks?: PolicyCheckResult[];
   message: string;
   securityNote?: string;
 }
@@ -98,13 +121,56 @@ function assertJwkMatchesAlgorithm(jwk: JWK, alg: AsymmetricAlgorithm): void {
   }
 }
 
+interface ResolvedPublicKey {
+  key: CryptoKey | Uint8Array;
+  matchedKid: string | null;
+}
+
+function selectJwkFromJwks(
+  keys: unknown[],
+  headerKid: string | null | undefined,
+): JWK {
+  if (keys.length === 0) {
+    throw new Error('JWKS "keys" dizisi boş.');
+  }
+
+  const validObjects = keys.filter(
+    (item): item is JWK =>
+      typeof item === 'object' && item !== null && !Array.isArray(item),
+  );
+  if (validObjects.length === 0) {
+    throw new Error('JWKS "keys" dizisi geçerli JWK nesneleri içermiyor.');
+  }
+
+  if (headerKid) {
+    const match = validObjects.find((item) => item.kid === headerKid);
+    if (!match) {
+      throw new Error(
+        `JWKS içinde token header'daki kid="${headerKid}" ile eşleşen anahtar bulunamadı.`,
+      );
+    }
+    return match;
+  }
+
+  if (validObjects.length > 1) {
+    throw new Error(
+      'Token header\'da "kid" bulunmadığı ve JWKS birden fazla anahtar içerdiği için hangi anahtarın kullanılacağı belirlenemedi.',
+    );
+  }
+
+  return validObjects[0];
+}
+
 async function resolvePublicKey(
   rawInput: string,
   alg: AsymmetricAlgorithm,
-): Promise<CryptoKey | Uint8Array> {
+  headerKid?: string | null,
+): Promise<ResolvedPublicKey> {
   const trimmed = rawInput.trim();
   if (!trimmed) {
-    throw new Error('Lütfen SPKI PEM (-----BEGIN PUBLIC KEY-----) veya JWK formatında public key girin.');
+    throw new Error(
+      'Lütfen SPKI PEM (-----BEGIN PUBLIC KEY-----), JWK veya JWKS JSON formatında public key girin.',
+    );
   }
 
   if (/-----BEGIN [A-Z ]*PRIVATE KEY-----/.test(trimmed)) {
@@ -118,24 +184,85 @@ async function resolvePublicKey(
     try {
       parsed = JSON.parse(trimmed);
     } catch {
-      throw new Error('Public Key JWK geçerli bir JSON nesnesi değil.');
+      throw new Error('Public Key JWK/JWKS geçerli bir JSON nesnesi değil.');
     }
     if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
-      throw new Error('Public Key JWK geçerli bir JSON nesnesi olmalıdır.');
+      throw new Error('Public Key JWK/JWKS geçerli bir JSON nesnesi olmalıdır.');
     }
-    const jwk = parsed as JWK;
+
+    const record = parsed as Record<string, unknown>;
+    const jwk: JWK = Array.isArray(record.keys)
+      ? selectJwkFromJwks(record.keys, headerKid)
+      : (record as JWK);
+
     assertJwkMatchesAlgorithm(jwk, alg);
     const imported = await importJWK(jwk, alg);
-    return imported as CryptoKey | Uint8Array;
+    return {
+      key: imported as CryptoKey | Uint8Array,
+      matchedKid: typeof jwk.kid === 'string' ? jwk.kid : null,
+    };
   }
 
   if (!trimmed.includes('-----BEGIN PUBLIC KEY-----')) {
     throw new Error(
-      'Desteklenen formatlar: SPKI PEM ("-----BEGIN PUBLIC KEY-----") veya JWK JSON.',
+      'Desteklenen formatlar: SPKI PEM ("-----BEGIN PUBLIC KEY-----"), JWK veya JWKS JSON.',
     );
   }
 
-  return importSPKI(trimmed, alg);
+  const spkiKey = await importSPKI(trimmed, alg);
+  return { key: spkiKey, matchedKid: null };
+}
+
+function evaluatePolicyAssertions(
+  payload: Record<string, unknown> | null | undefined,
+  expectedIssuer?: string,
+  expectedAudience?: string,
+): PolicyCheckResult[] {
+  const results: PolicyCheckResult[] = [];
+
+  const trimmedIss = expectedIssuer?.trim();
+  if (trimmedIss) {
+    const actualIss =
+      payload && typeof payload.iss === 'string' ? payload.iss : null;
+    const passed = actualIss === trimmedIss;
+    results.push({
+      claim: 'iss',
+      expected: trimmedIss,
+      actual: actualIss,
+      passed,
+      message: passed
+        ? `Issuer (iss) eşleşti: ${actualIss}`
+        : `Issuer (iss) uyuşmuyor (beklenen: "${trimmedIss}", gelen: ${actualIss ? `"${actualIss}"` : 'yok'}).`,
+    });
+  }
+
+  const trimmedAud = expectedAudience?.trim();
+  if (trimmedAud) {
+    const rawAud = payload?.aud;
+    let actualDisplay: string | null = null;
+    let passed = false;
+
+    if (typeof rawAud === 'string') {
+      actualDisplay = rawAud;
+      passed = rawAud === trimmedAud;
+    } else if (Array.isArray(rawAud)) {
+      const stringItems = rawAud.filter((v): v is string => typeof v === 'string');
+      actualDisplay = stringItems.join(', ');
+      passed = stringItems.includes(trimmedAud);
+    }
+
+    results.push({
+      claim: 'aud',
+      expected: trimmedAud,
+      actual: actualDisplay,
+      passed,
+      message: passed
+        ? `Audience (aud) doğrulandı: ${trimmedAud}`
+        : `Audience (aud) uyuşmuyor (beklenen: "${trimmedAud}", gelen: ${actualDisplay ? `"${actualDisplay}"` : 'yok'}).`,
+    });
+  }
+
+  return results;
 }
 
 /**
@@ -147,11 +274,15 @@ export async function verifyJwtSignature(
   const {
     token,
     headerAlg,
+    headerKid,
+    payload,
     keyMode,
     expectedAlgorithm,
     secret,
     secretEncoding,
     publicKeyInput,
+    expectedIssuer,
+    expectedAudience,
   } = options;
 
   if (!headerAlg) {
@@ -210,6 +341,7 @@ export async function verifyJwtSignature(
 
   try {
     let key: CryptoKey | JWK;
+    let matchedKeyId: string | null = null;
 
     if (keyMode === 'hmac') {
       const trimmedSecret = secret.trim();
@@ -235,16 +367,41 @@ export async function verifyJwtSignature(
           : new TextEncoder().encode(secret);
       key = bytesToOctJwk(secretBytes);
     } else {
-      key = (await resolvePublicKey(publicKeyInput, headerAlg as AsymmetricAlgorithm)) as CryptoKey;
+      const resolved = await resolvePublicKey(
+        publicKeyInput,
+        headerAlg as AsymmetricAlgorithm,
+        headerKid,
+      );
+      key = resolved.key as CryptoKey;
+      matchedKeyId = resolved.matchedKid;
     }
 
     await compactVerify(token, key, {
       algorithms: [headerAlg],
     });
 
+    const policyChecks = evaluatePolicyAssertions(
+      payload,
+      expectedIssuer,
+      expectedAudience,
+    );
+    const allPoliciesPassed = policyChecks.every((item) => item.passed);
+
+    if (!allPoliciesPassed) {
+      return {
+        status: 'invalid',
+        algorithmUsed: headerAlg,
+        matchedKeyId,
+        policyChecks,
+        message: `İmza doğrulandı (${headerAlg}), ancak Claim Policy kontrolü başarısız oldu.`,
+      };
+    }
+
     return {
       status: 'valid',
       algorithmUsed: headerAlg,
+      matchedKeyId,
+      policyChecks,
       message: `İmza kriptografik olarak doğrulandı (${headerAlg}).`,
     };
   } catch (err) {
@@ -327,5 +484,52 @@ export async function createSampleTokens(): Promise<DemoTokenBundle> {
     expiredToken,
     tamperedToken,
     secret: DEMO_HMAC_SECRET,
+  };
+}
+
+export interface AsymmetricDemoBundle {
+  token: string;
+  jwksJson: string;
+  spkiPem: string;
+  kid: string;
+}
+
+/**
+ * Generates an RS256 demo JWT and matching JWKS / SPKI public key directly in browser memory.
+ */
+export async function createAsymmetricSampleToken(): Promise<AsymmetricDemoBundle> {
+  const { publicKey, privateKey } = await generateKeyPair('RS256', {
+    extractable: true,
+  });
+  const nowSec = Math.floor(Date.now() / 1000);
+  const kid = 'rsa-demo-key-1';
+
+  const token = await new SignJWT({
+    sub: 'svc_billing_worker',
+    name: 'Billing Service',
+    roles: ['service-account'],
+    scope: 'invoices:write',
+  })
+    .setProtectedHeader({ alg: 'RS256', typ: 'JWT', kid })
+    .setIssuer('https://auth.tokenpeek.local')
+    .setAudience('https://api.tokenpeek.local')
+    .setIssuedAt(nowSec - 120)
+    .setExpirationTime(nowSec + 3600)
+    .setJti('jti_demo_rsa_01')
+    .sign(privateKey);
+
+  const pubJwk = await exportJWK(publicKey);
+  pubJwk.kid = kid;
+  pubJwk.use = 'sig';
+  pubJwk.alg = 'RS256';
+
+  const spkiPem = await exportSPKI(publicKey);
+  const jwksJson = JSON.stringify({ keys: [pubJwk] }, null, 2);
+
+  return {
+    token,
+    jwksJson,
+    spkiPem,
+    kid,
   };
 }

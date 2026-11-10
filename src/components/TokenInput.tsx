@@ -12,7 +12,7 @@ interface TokenInputProps {
   rawToken: string;
   onChange: (value: string) => void;
   inspection: JwtInspectionResult;
-  onLoadSample: (kind: 'valid' | 'expired' | 'tampered') => void;
+  onLoadSample: (kind: 'valid' | 'expired' | 'tampered' | 'rs256') => void;
   onClear: () => void;
 }
 
@@ -35,10 +35,18 @@ export function TokenInput({
             type="button"
             className="btn"
             onClick={() => onLoadSample('valid')}
-            title="Tarayıcı içinde geçerli örnek token üret"
+            title="Tarayıcı içinde geçerli HS256 örnek token üret"
           >
             <Sparkles size={14} />
-            Örnek Geçerli
+            Örnek HS256
+          </button>
+          <button
+            type="button"
+            className="btn"
+            onClick={() => onLoadSample('rs256')}
+            title="Tarayıcı içinde RS256 anahtar çifti ve JWKS ile örnek token üret"
+          >
+            Örnek RS256
           </button>
           <button
             type="button"

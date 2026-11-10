@@ -23,6 +23,8 @@ import {
 interface SignatureVerifierProps {
   token: string;
   headerAlg: string | null;
+  headerKid?: string | null;
+  payload?: Record<string, unknown> | null;
   secret: string;
   onSecretChange: (value: string) => void;
   publicKeyInput: string;
@@ -32,6 +34,8 @@ interface SignatureVerifierProps {
 export function SignatureVerifier({
   token,
   headerAlg,
+  headerKid = null,
+  payload = null,
   secret,
   onSecretChange,
   publicKeyInput,
@@ -41,6 +45,8 @@ export function SignatureVerifier({
   const [expectedAlg, setExpectedAlg] = useState<SupportedAlgorithm | 'auto'>('auto');
   const [secretEncoding, setSecretEncoding] = useState<SecretEncoding>('utf8');
   const [showSecret, setShowSecret] = useState(false);
+  const [expectedIssuer, setExpectedIssuer] = useState('');
+  const [expectedAudience, setExpectedAudience] = useState('');
   const [result, setResult] = useState<VerifySignatureResult | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
 
@@ -64,11 +70,15 @@ export function SignatureVerifier({
       const res = await verifyJwtSignature({
         token,
         headerAlg,
+        headerKid,
+        payload,
         keyMode,
         expectedAlgorithm: expectedAlg,
         secret,
         secretEncoding,
         publicKeyInput,
+        expectedIssuer,
+        expectedAudience,
       });
       setResult(res);
     } finally {
@@ -193,7 +203,12 @@ export function SignatureVerifier({
       ) : (
         <div className="field-group">
           <label htmlFor="public-key" className="field-label">
-            <span>Public Key (SPKI PEM veya JWK JSON)</span>
+            <span>Public Key (SPKI PEM, JWK veya JWKS JSON)</span>
+            {headerKid && (
+              <span className="muted" style={{ fontSize: '0.74rem' }}>
+                Header kid: <strong>{headerKid}</strong>
+              </span>
+            )}
           </label>
           <textarea
             id="public-key"
@@ -205,12 +220,49 @@ export function SignatureVerifier({
               setResult(null);
             }}
             placeholder={
-              '-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A...\n-----END PUBLIC KEY-----\n\nveya {"kty":"RSA","n":"...","e":"AQAB"}'
+              '-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----\n\nveya JWK {"kty":"RSA",...}\nveya JWKS {"keys":[...]}'
             }
             spellCheck={false}
           />
         </div>
       )}
+
+      <div className="meta-grid" style={{ marginTop: 12 }}>
+        <div className="field-group" style={{ marginTop: 0 }}>
+          <label htmlFor="expected-iss" className="field-label">
+            <span>Beklenen Issuer (iss) — Opsiyonel</span>
+          </label>
+          <input
+            id="expected-iss"
+            type="text"
+            className="field-input mono"
+            value={expectedIssuer}
+            onChange={(e) => {
+              setExpectedIssuer(e.target.value);
+              setResult(null);
+            }}
+            placeholder="https://auth.example.com"
+            spellCheck={false}
+          />
+        </div>
+        <div className="field-group" style={{ marginTop: 0 }}>
+          <label htmlFor="expected-aud" className="field-label">
+            <span>Beklenen Audience (aud) — Opsiyonel</span>
+          </label>
+          <input
+            id="expected-aud"
+            type="text"
+            className="field-input mono"
+            value={expectedAudience}
+            onChange={(e) => {
+              setExpectedAudience(e.target.value);
+              setResult(null);
+            }}
+            placeholder="https://api.example.com"
+            spellCheck={false}
+          />
+        </div>
+      </div>
 
       <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
         <button
@@ -246,6 +298,32 @@ export function SignatureVerifier({
           )}
           <div>
             <div style={{ fontWeight: 600 }}>{result.message}</div>
+            {result.matchedKeyId && (
+              <div className="muted" style={{ marginTop: 4, fontSize: '0.78rem' }}>
+                JWKS üzerinden eşleşen anahtar (<code>kid</code>):{' '}
+                <strong>{result.matchedKeyId}</strong>
+              </div>
+            )}
+            {result.policyChecks && result.policyChecks.length > 0 && (
+              <ul
+                style={{
+                  margin: '6px 0 0',
+                  paddingLeft: 18,
+                  fontSize: '0.78rem',
+                }}
+              >
+                {result.policyChecks.map((pc) => (
+                  <li
+                    key={pc.claim}
+                    style={{
+                      color: pc.passed ? '#86efac' : '#fca5a5',
+                    }}
+                  >
+                    {pc.message}
+                  </li>
+                ))}
+              </ul>
+            )}
             {result.securityNote && (
               <div className="muted" style={{ marginTop: 4, fontSize: '0.78rem' }}>
                 {result.securityNote}
