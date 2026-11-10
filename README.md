@@ -3,7 +3,7 @@
 Backend geliştiricilerin JWT (JSON Web Token) içeriklerini **hiçbir sunucuya veri göndermeden**, doğrudan tarayıcı içinde güvenli bir şekilde incelemesini ve doğrulamasını sağlayan geliştirici aracı.
 <div align="center">
   
-[![Live Demo](https://img.shields.io/badge/demo-online-green.svg?style=for-the-badge&logo=vercel)](https://token-peek.vercel.app/)
+[![Live Demo](https://img.shields.io/badge/demo-online-green.svg?style=for-the-badge&logo=vercel)](https://senemur.github.io/TokenPeek/)
 
 </div>
 <p align="center">
