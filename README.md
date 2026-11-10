@@ -1,6 +1,14 @@
 # TokenPeek — İstemci Taraflı JWT İnceleme Aracı
 
 Backend geliştiricilerin JWT (JSON Web Token) içeriklerini **hiçbir sunucuya veri göndermeden**, doğrudan tarayıcı içinde güvenli bir şekilde incelemesini ve doğrulamasını sağlayan geliştirici aracı.
+<div align="center">
+  
+[![Live Demo](https://img.shields.io/badge/demo-online-green.svg?style=for-the-badge&logo=vercel)](https://token-peek.vercel.app/)
+
+</div>
+<p align="center">
+  <img src="./public/tokenpeek-logo.png" alt="TokenPeek Logo" width="160" />
+</p>
 
 ## Özellikler
 
@@ -16,6 +24,11 @@ Backend geliştiricilerin JWT (JSON Web Token) içeriklerini **hiçbir sunucuya 
   - **Claim Policy Assertions:** İsteğe bağlı beklenen `iss` (Issuer) ve `aud` (Audience) doğrulaması
   - **Yerleşik Demo Üretici:** Tarayıcı belleğinde tek tıkla geçerli `HS256`, `RS256` (JWKS ile), süresi dolmuş ve bozuk imzalı test token'ları üretme
   - `alg="none"` reddi, Algorithm Pinning, private key engeli ve simetrik/asimetrik anahtar karışıklığı koruması
+ 
+  - <!-- SCREENSHOT_PLACEHOLDER: Overview Landing Page and Feature Showcase -->
+> <img width="1406" height="893" alt="image" src="./public/TokenPeek.jpg" />
+> Overview Page View
+
 
 ## Teknoloji Yığını
 
