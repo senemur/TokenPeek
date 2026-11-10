@@ -2,7 +2,6 @@ import {
   AlertTriangle,
   CheckCircle2,
   KeyRound,
-  Sparkles,
   Trash2,
   XCircle,
 } from 'lucide-react';
@@ -44,7 +43,6 @@ export function TokenInput({
 
       <div className="sample-box" aria-label="Örnek token oluşturma araçları">
         <div className="sample-box-label">
-          <Sparkles size={14} color="#38bdf8" />
           Test için Örnek Token Oluştur (Tarayıcıda üretilir):
         </div>
         <div className="btn-row">
