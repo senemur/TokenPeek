@@ -75,7 +75,7 @@ export function App() {
             onClear={handleClear}
           />
 
-          {inspection.normalizedToken && (
+          {inspection.normalizedToken && inspection.tokenFormat === 'jws' && (
             <SignatureVerifier
               token={inspection.normalizedToken}
               headerAlg={headerAlg}
@@ -84,6 +84,20 @@ export function App() {
               publicKeyInput={publicKeyInput}
               onPublicKeyChange={setPublicKeyInput}
             />
+          )}
+
+          {inspection.tokenFormat === 'jwe' && (
+            <section className="card" aria-label="JWE Bilgilendirmesi">
+              <h2 className="card-title" style={{ marginBottom: 8 }}>
+                <Lock size={17} color="#f59e0b" />
+                JWE (Şifreli Token) Algılandı
+              </h2>
+              <p className="muted" style={{ margin: 0 }}>
+                Bu token JWS yerine 5 bölümlü <strong>JWE</strong> formatındadır. İçerik şifreli
+                olduğu için yalnızca JWE Header incelenebilir; imza doğrulaması ve payload çözümlemesi
+                uygulanmaz.
+              </p>
+            </section>
           )}
         </div>
 

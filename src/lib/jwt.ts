@@ -13,8 +13,11 @@ export interface JwtSegments {
   signatureRaw: string;
 }
 
+export type JwtFormatKind = 'empty' | 'jws' | 'jwe' | 'invalid';
+
 export interface JwtInspectionResult {
   isEmpty: boolean;
+  tokenFormat: JwtFormatKind;
   isValidStructure: boolean;
   bearerPrefixStripped: boolean;
   normalizedToken: string;
@@ -244,6 +247,7 @@ export function inspectJwt(rawInput: string): JwtInspectionResult {
   if (!trimmed) {
     return {
       isEmpty: true,
+      tokenFormat: 'empty',
       isValidStructure: false,
       bearerPrefixStripped: false,
       normalizedToken: '',
@@ -263,6 +267,47 @@ export function inspectJwt(rawInput: string): JwtInspectionResult {
   const checks: ValidationCheck[] = [];
   const errors: string[] = [];
 
+  if (parts.length === 5) {
+    const jweHeaderDecoded = decodeJsonObjectSegment(parts[0], 'Header');
+    const detail =
+      'Bu token 5 bölümden (JWE: Header.EncryptedKey.IV.Ciphertext.Tag) oluşuyor. İçerik şifrelenmiş olduğu için payload tarayıcıda çözümlenemez; yalnızca korumalı JWE Header görüntülenebilir.';
+    checks.push({
+      id: 'structure-jwe',
+      label: 'JWE (Şifreli JWT) Tespit Edildi',
+      status: 'warn',
+      detail,
+    });
+    if (jweHeaderDecoded.error) {
+      checks.push({
+        id: 'header-encoding',
+        label: 'JWE Header Base64URL & JSON',
+        status: 'fail',
+        detail: jweHeaderDecoded.error,
+      });
+      errors.push(jweHeaderDecoded.error);
+    } else if (jweHeaderDecoded.data) {
+      checks.push({
+        id: 'header-encoding',
+        label: 'JWE Header Base64URL & JSON',
+        status: 'pass',
+        detail: `JWE Header çözümlendi (alg: ${String(jweHeaderDecoded.data.alg ?? 'yok')}, enc: ${String(jweHeaderDecoded.data.enc ?? 'yok')}).`,
+      });
+    }
+
+    return {
+      isEmpty: false,
+      tokenFormat: 'jwe',
+      isValidStructure: false,
+      bearerPrefixStripped,
+      normalizedToken,
+      segments: null,
+      header: jweHeaderDecoded.data,
+      payload: null,
+      checks,
+      errors,
+    };
+  }
+
   if (parts.length !== 3) {
     const detail = `JWT 3 bölümden (header.payload.signature) oluşmalıdır; şu an ${parts.length} bölüm bulundu.`;
     checks.push({
@@ -275,6 +320,7 @@ export function inspectJwt(rawInput: string): JwtInspectionResult {
 
     return {
       isEmpty: false,
+      tokenFormat: 'invalid',
       isValidStructure: false,
       bearerPrefixStripped,
       normalizedToken,
@@ -390,6 +436,7 @@ export function inspectJwt(rawInput: string): JwtInspectionResult {
 
   return {
     isEmpty: false,
+    tokenFormat: isValidStructure ? 'jws' : 'invalid',
     isValidStructure,
     bearerPrefixStripped,
     normalizedToken,

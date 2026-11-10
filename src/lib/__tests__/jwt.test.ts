@@ -36,8 +36,19 @@ describe('inspectJwt', () => {
 
   it('rejects non-3-part tokens', () => {
     const res = inspectJwt('abc.def');
+    expect(res.tokenFormat).toBe('invalid');
     expect(res.isValidStructure).toBe(false);
     expect(res.checks[0]?.status).toBe('fail');
+  });
+
+  it('detects 5-part JWE tokens and decodes JWE header', () => {
+    const jweHeader = toBase64Url({ alg: 'RSA-OAEP-256', enc: 'A256GCM', kid: 'enc-1' });
+    const res = inspectJwt(`${jweHeader}.encKey.iv.ciphertext.tag`);
+    expect(res.tokenFormat).toBe('jwe');
+    expect(res.isValidStructure).toBe(false);
+    expect(res.header).toEqual({ alg: 'RSA-OAEP-256', enc: 'A256GCM', kid: 'enc-1' });
+    expect(res.payload).toBeNull();
+    expect(res.checks.some((c) => c.id === 'structure-jwe' && c.status === 'warn')).toBe(true);
   });
 
   it('warns on alg=none and empty signature', () => {
